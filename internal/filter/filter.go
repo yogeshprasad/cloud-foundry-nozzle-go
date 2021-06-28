@@ -39,6 +39,7 @@ type Filters struct {
 	MetricsBlackList []string
 	MetricsWhiteList []string
 	MetricsToHisList []string
+	ProductFilters   []string
 
 	MetricsTagBlackList TagFilter
 	MetricsTagWhiteList TagFilter
@@ -51,6 +52,7 @@ type globFilter struct {
 	metricWhitelist    glob.Glob
 	metricBlacklist    glob.Glob
 	metricsToHisList   glob.Glob
+	productFilters     glob.Glob
 	metricTagWhitelist map[string]glob.Glob
 	metricTagBlacklist map[string]glob.Glob
 	tagInclude         glob.Glob
@@ -65,6 +67,7 @@ func NewGlobFilter(cfg *Filters) Filter {
 	utils.Logger.Printf("filters: MetricsWhiteList = '%v", cfg.MetricsWhiteList)
 	utils.Logger.Printf("filters: MetricsBlackList = '%v", cfg.MetricsBlackList)
 	utils.Logger.Printf("filters: MetricsToHisList = '%v", cfg.MetricsToHisList)
+	utils.Logger.Printf("filters: KPI = '%s", cfg.ProductFilters)
 	utils.Logger.Printf("filters: MetricsTagWhiteList = '%v", cfg.MetricsTagWhiteList)
 	utils.Logger.Printf("filters: MetricsTagBlackList = '%v", cfg.MetricsTagBlackList)
 	utils.Logger.Printf("filters: TagInclude = '%v", cfg.TagInclude)
@@ -74,6 +77,7 @@ func NewGlobFilter(cfg *Filters) Filter {
 		metricWhitelist:    compile(cfg.MetricsWhiteList),
 		metricBlacklist:    compile(cfg.MetricsBlackList),
 		metricsToHisList:   compile(cfg.MetricsToHisList),
+		productFilters:     compile(cfg.ProductFilters),
 		metricTagWhitelist: multiCompile(cfg.MetricsTagWhiteList),
 		metricTagBlacklist: multiCompile(cfg.MetricsTagBlackList),
 		tagInclude:         compile(cfg.TagInclude),
@@ -109,6 +113,9 @@ func multiCompile(filters map[string][]string) map[string]glob.Glob {
 }
 
 func (gf *globFilter) Match(name string, tags map[string]string) bool {
+	if gf.productFilters != nil && !gf.productFilters.Match(name) {
+		return false
+	}
 	if gf.metricWhitelist != nil && !gf.metricWhitelist.Match(name) {
 		return false
 	}
@@ -138,6 +145,7 @@ func (gf *globFilter) IsHistogramMetric(name string) bool {
 	}
 	return false
 }
+
 
 func matchesTags(matchers map[string]glob.Glob, tags map[string]string) bool {
 	for k, matcher := range matchers {

@@ -11,6 +11,8 @@ import (
 	"github.com/wavefronthq/cloud-foundry-nozzle-go/internal/filter"
 )
 
+var filterKpi string = ".*{/,/p.,}{mysql/,}{available.boolean,galera/wsrep_ready,galera/wsrep_cluster_size,galera/wsrep_cluster_status,AuctioneerLRPAuctionsFailed,AuctioneerTaskAuctionsFailed,AuctioneerLRPAuctionsStarted,bbs.LRPsExtra,bbs.LRPsMissing,bbs.LRPsRunning,bbs.TasksRunning,bbs.Domain.cf-apps,bbs.TasksPending,rep.CapacityRemainingMemory,rep.CapacityRemainingDisk,rep.CapacityTotalContainers,rep.CapacityTotalDisk,rep.RepBulkSyncDuration,rep.CapacityTotalMemory,gorouter.file_descriptors,gorouter.total_requests,gorouter.latency.uaa,uaa.requests.global.status_5xx.count,gorouter.ms_since_last_registry_update,gorouter.responses.5xx,route_emitter.RouteEmitterSyncDuration,uaa.requests.global.completed.count,uaa.requests.global.unhealthy.count,system_metrics_agent.system_cpu_core_user,system_metrics_agent.system_healthy,system_metrics_agent.system_mem_percent}*"
+
 // Config holds users provided env variables
 type Config struct {
 	Nozzle    *NozzleConfig
@@ -64,6 +66,7 @@ type advancedConfig struct {
 		MetricsWhiteList string   `json:"filter_metrics_white_list"`
 		LegacyMode       bool     `json:"legacy_mode"`
 		MetricsToHisList string   `json:"metrics_to_histogram_filter"`
+		OnlyKpiMetrics   bool     `json:"only_kpi_metrics"`
 	} `json:"selected_option"`
 }
 
@@ -95,6 +98,7 @@ func ParseConfig() (*Config, error) {
 	parseIndexedVars("FILTER_METRICS_WHITE_LIST")
 	parseIndexedVars("FILTER_METRICS_TAG_BLACK_LIST")
 	parseIndexedVars("FILTER_METRICS_TAG_WHITE_LIST")
+	var productFilters []string
 
 	nozzleConfig := &NozzleConfig{}
 	err := envconfig.Process("nozzle", nozzleConfig)
@@ -127,6 +131,12 @@ func ParseConfig() (*Config, error) {
 	if len(nozzleConfig.AdvancedConfig.Values.MetricsToHisList) > 0 {
 		os.Setenv("FILTER_METRICS_TO_HIS_LIST", nozzleConfig.AdvancedConfig.Values.MetricsToHisList)
 	}
+
+	if nozzleConfig.AdvancedConfig.Values.OnlyKpiMetrics {
+		productFilters = append(productFilters,wavefrontConfig.Prefix + filterKpi)
+		//os.Setenv("FILTER_PRODUCT", productFilters)
+	}
+
 	f := &filtersConfig{}
 	err = envconfig.Process("filter", f)
 	if err != nil {
@@ -139,6 +149,7 @@ func ParseConfig() (*Config, error) {
 		MetricsToHisList:    f.MetricsToHisList,
 		MetricsTagBlackList: f.MetricsTagBlackList,
 		MetricsTagWhiteList: f.MetricsTagWhiteList,
+		ProductFilters:      productFilters,
 		TagInclude:          f.TagInclude,
 		TagExclude:          f.TagExclude,
 	}
